@@ -1,18 +1,27 @@
 #!/usr/bin/perl
+# $Id:$
 
 use strict;
 
 package Core;
 use Agent;
+use Config::General;
 
 sub new {
   my $class = shift or return undef;
   my $cgi = shift || new CGI;
+  my $configfile = shift || ".htconfig";
+  my $config = new Config::General( $configfile ) or return undef;
   my $this = bless {
     cgi => $cgi,
-    dbh => DBI->connect( "DBI:mysql:database=test", "test", "test" ),
+    config => { $config->getall },
     cookies => [],
   }, $class;
+  $this->{'dbh'} = DBI->connect(
+                     $this->{'config'}{'database'},
+                     $this->{'config'}{'databaseuser'},
+                     $this->{'config'}{'databasepass'},
+                   ) or return undef;
   return $this;
 }
 
