@@ -1,0 +1,5 @@
+# Edit settings and copy this file to .htconfig
+
+database=DBI:mysql:database=db_name
+databaseuser=username
+databasepass=password
