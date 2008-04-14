@@ -44,8 +44,11 @@ sub restore {
   my $this = shift or return undef;
   my $id = shift;
   if( $id =~ /^\d+$/ ) {
-    warn "DEBUG: Select agent with id = $id\n";
-    ( $this->{'agent_id'}, $this->{'start_date'}, $this->{'last_date'}, $this->{'status'} )
+    $this->{'core'}->debug( "Select agent with id = %s", $id );
+    ( $this->{'agent_id'},
+      $this->{'start_date'},
+      $this->{'last_date'},
+      $this->{'status'} )
       = $this->{'core'}{'dbh'}->selectrow_array(q{
               SELECT agent_id,start_date,last_date,status
 	      FROM agent
@@ -60,7 +63,7 @@ sub create {
   my $tries = 5;
   while( $tries-- ) {
     $id = sprintf "%d%06d", time, int rand 100000;
-    warn "DEBUG: Create agent id=$id\n";
+    $this->{'core'}->debug( "Create agent id=%s", $id );
     $rows = $this->{'core'}{'dbh'}->do( q{ INSERT INTO agent(agent_id,last_date,status) values(?,now(),0) }, undef, $id );
     if( $rows == 1 ) {
       $this->{'agent_id'} = $id;
@@ -68,7 +71,7 @@ sub create {
       return $this->{'agent_id'};
     }
     else {
-      warn sprintf "Insert failure. %s\n", $this->{'core'}{'dbh'}->errstr;
+      $this->{'core'}->debug( "Insert failure. %s", $this->{'core'}{'dbh'}->errstr );
     }
   }
   return undef;

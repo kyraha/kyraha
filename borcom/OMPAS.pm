@@ -58,9 +58,16 @@ sub init {
 
 sub errmess {
   my $this = shift or return undef;
-  return $this->{'errmess'} unless @_;
-  my $this->{'errmess'} = @_ == 1 ? shift : sprintf @_;
+  my $fmt = shift or return $this->{'errmess'};
+  $this->{'errmess'} = sprintf $fmt, @_;
+  $this->debug( $this->{'errmess'} );
   return undef; # usually methods are about to set errmess and return undef
+}
+
+sub debug {
+  my $this = shift or return undef;
+  my $fmt = shift || '-=an empty debug call=-';
+  warn sprintf "DEBUG: %s\n", sprintf $fmt, @_ if $this->{'config'}{'debug'};
 }
 
 sub cookies {
