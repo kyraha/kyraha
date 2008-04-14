@@ -26,21 +26,28 @@
 use strict;
 
 use CGI;
-use DBI;
-use Core;
+use OMPAS;
 
 
 my $cgi = new CGI;
-my $cfile = '.htconfig';
-my $core = new Core( $cgi, $cfile );
+my $core = new OMPAS();
 
-unless( $core->init_session() ) {
-  # Prepare something;
+unless( $core and $core->init({ cgi => $cgi, configfile => '.htconfig' }) ) {
+  print $cgi->header(),
+        $cgi->start_html('Internal script error'), # start the HTML
+        $cgi->h1('Internal script error'),         # level 1 header
+        $cgi->p( $core ? $core->errmess : 'Can not create a new core' ),
+        $cgi->end_html;                  # end the HTML
 }
+
+#unless( $core->init_session() ) {
+#  # Prepare something;
+#}
 
 
 
 print $cgi->header( -cookie => $core->cookies );
+print $cgi->start_html('Ten (10) Pieces for the World');
 
 print $cgi->h1('Just Ten Pieces for the World');
 

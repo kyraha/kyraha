@@ -22,7 +22,7 @@
 # THE SOFTWARE.
 # 
 
-package Agent;
+package OMPAS::Auth::Agent;
 use strict;
 
 sub new {
