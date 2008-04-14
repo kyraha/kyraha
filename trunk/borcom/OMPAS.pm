@@ -24,26 +24,43 @@
 
 use strict;
 
-package Core;
-use Agent;
+package OMPAS;
+use OMPAS::Auth::Agent;
 use Config::General;
+use CGI;
+use DBI;
 
 sub new {
   my $class = shift or return undef;
-  my $cgi = shift || new CGI;
-  my $configfile = shift || ".htconfig";
-  my $config = new Config::General( $configfile ) or return undef;
   my $this = bless {
-    cgi => $cgi,
-    config => { $config->getall },
+    config => {},
     cookies => [],
   }, $class;
+  $this->init(@_) if @_;
+  return $this;
+}
+
+sub init {
+  my $this = shift or return undef;
+  my $param = shift || {};
+  my $configfile = $param->{'configfile'} || ".htconfig";
+  my $config = new Config::General( $configfile ) or return $this->errmess('Can not init config');
+  $this->{'config'} = { $config->getall };
+  $this->{'cgi'} = $param->{'cgi'} || new CGI or return $this->errmess('Can not initialize CGI');
   $this->{'dbh'} = DBI->connect(
                      $this->{'config'}{'database'},
                      $this->{'config'}{'databaseuser'},
                      $this->{'config'}{'databasepass'},
-                   ) or return undef;
+                   ) or return $this->errmess('Can not init DB handler: %s', $DBI::errstr);
+  $this->init_session() or return $this->errmess('Can not init a session');
   return $this;
+}
+
+sub errmess {
+  my $this = shift or return undef;
+  return $this->{'errmess'} unless @_;
+  my $this->{'errmess'} = @_ == 1 ? shift : sprintf @_;
+  return undef; # usually methods are about to set errmess and return undef
 }
 
 sub cookies {
@@ -56,12 +73,12 @@ sub init_session {
   my $this = shift or return undef;
   if( $this->{'cgi'}->cookie('B') ) {
     # cookies are traveling, so we can use them
-    $this->{'agent'} = new Agent( $this );
+    $this->{'agent'} = new OMPAS::Auth::Agent( $this );
     if( $this->{'agent'} ) {
       $this->cookies( $this->{'cgi'}->cookie(-name => 'B', -value => $this->{'agent'}{'agent_id'}, -expires => '+3M' ) );
     }
     else {
-      warn "Empty Agent\n";
+      return $this->errmess( "Empty OMPAS::Auth::Agent" );
     }
   }
   else {
