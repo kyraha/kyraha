@@ -1,0 +1,103 @@
+<html>
+<head>
+<link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.5.2/build/fonts/fonts-min.css" />
+<script type="text/javascript" src="http://yui.yahooapis.com/2.5.2/build/yahoo-dom-event/yahoo-dom-event.js"></script>
+<script type="text/javascript" src="http://yui.yahooapis.com/2.5.2/build/animation/animation-min.js"></script>
+
+<style type="text/css"> 
+#demo {
+/*    height:40em; */
+/*    width:60em; */
+} 
+#demo table tbody tr td table tbody tr td div div {
+	font-size: 3em;
+	color:#FF0; 
+	background:#006; 
+	height: 0;
+	width: 2em;
+	text-align: center;
+	overflow: hidden;
+	padding: 0;
+	line-height: 2;
+}
+#demo table tbody tr td table tbody tr td div {
+	font-size: 1em;
+	color:#00c; 
+	background:#ccc; 
+	height: 6em;
+	width: 6em;
+	text-align: center;
+	overflow: hidden;
+	padding: 0;
+}
+</style> 
+</head>
+<body>
+	
+<div id="demo"> Loading... </div> 
+<button id="demo-run">run</button> 
+
+<script type="text/javascript"> 
+	function subcell(base) {
+		var ret = "<table><tbody>";
+		for( var r=0; r<3; r++ ) {
+			ret += "<tr>";
+			for( var c=0; c<3; c++ ) {
+				var a = 10*base + 1+c+3*(2-r);
+				var m = base * (1+c+3*(2-r));
+				//ret += "<td onclick=\"clickHandler(this,"+ a +")\"><div id=\"cont_" + a + "\">";
+				ret += "<td><div id=\"cont_" + a + "\" onclick=\"clickHandler(this)\">";
+				ret += "<div id=\"cell_" + a + "\">" + m + "</div>" + a + "</div></td>";
+			}
+			ret += "</tr>";
+		}
+		ret += "</tbody></table>";
+		return ret;
+	}
+
+	function bigcell() {
+		var ret = "<table><tbody>";
+		for( var r=0; r<3; r++ ) {
+			ret += "<tr>";
+			for( var c=0; c<3; c++ ) {
+				var a = 1+c+3*(2-r);
+				ret += "<td id=\"big_" + a + "\">" + subcell(a) + "</td>";
+			}
+			ret += "</tr>";
+		}
+		ret += "<tbody></table>";
+		return ret;
+	}
+
+	var okon = bigcell();
+	document.getElementById("demo").innerHTML = okon;
+
+</script> 
+<script type="text/javascript"> 
+	var box58 = { open: 0 };
+	function clickHandler(div) {
+		if( div.open ) {
+			div.open = 0;
+			var attrClose = { height: { to: '0', unit: 'em', from: '2' } }; 
+			var anim = new YAHOO.util.Anim(div.id.replace(/cont/,"cell"), attrClose, 1 ); 
+    	anim.animate(); 
+		}
+		else {
+			div.open = 1;
+			var attrOpen  = { height: { to: '2', unit: 'em' } }; 
+			var anim = new YAHOO.util.Anim(div.id.replace(/cont/,"cell"), attrOpen ); 
+			anim.animate(); 
+		}
+	}
+	for( var y=1; y<=9;y++ ) {
+		for( var x=1; x<=9;x++ ) {
+			var n = 10*y + x;
+//			var fun = function(e) { clickHandler(e,n); }
+//			YAHOO.util.Event.addListener('cont_'+n, 'click', fun );
+		}
+	}
+		
+</script> 
+</body>
+</html>
+
