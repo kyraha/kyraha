@@ -35,7 +35,6 @@
 <body>
 	
 <div id="demo"> Loading... </div> 
-<button id="demo-run">run</button> 
 
 <script type="text/javascript"> 
 	function subcell(base) {
@@ -45,7 +44,6 @@
 			for( var c=0; c<3; c++ ) {
 				var a = 10*base + 1+c+3*(2-r);
 				var m = base * (1+c+3*(2-r));
-				//ret += "<td onclick=\"clickHandler(this,"+ a +")\"><div id=\"cont_" + a + "\">";
 				ret += "<td><div id=\"cont_" + a + "\" onclick=\"clickHandler(this)\">";
 				ret += "<div id=\"cell_" + a + "\">" + m + "</div>" + a + "</div></td>";
 			}
@@ -74,7 +72,6 @@
 
 </script> 
 <script type="text/javascript"> 
-	var box58 = { open: 0 };
 	function clickHandler(div) {
 		if( div.open ) {
 			div.open = 0;
@@ -92,8 +89,6 @@
 	for( var y=1; y<=9;y++ ) {
 		for( var x=1; x<=9;x++ ) {
 			var n = 10*y + x;
-//			var fun = function(e) { clickHandler(e,n); }
-//			YAHOO.util.Event.addListener('cont_'+n, 'click', fun );
 		}
 	}
 		
