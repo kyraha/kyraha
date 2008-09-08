@@ -1,5 +1,6 @@
 <html>
 <head>
+<title>Novemological multiplication table (game)</title>
 <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.5.2/build/fonts/fonts-min.css" />
 <script type="text/javascript" src="http://yui.yahooapis.com/2.5.2/build/yahoo-dom-event/yahoo-dom-event.js"></script>
 <script type="text/javascript" src="http://yui.yahooapis.com/2.5.2/build/animation/animation-min.js"></script>
@@ -10,7 +11,7 @@
 /*    width:60em; */
 } 
 #demo table tbody tr td table tbody tr td div div {
-	font-size: 3em;
+	font-size: 2em;
 	color:#FF0; 
 	background:#006; 
 	height: 0;
@@ -24,28 +25,69 @@
 	font-size: 1em;
 	color:#00c; 
 	background:#ccc; 
-	height: 6em;
-	width: 6em;
+	height: 4em;
+	width: 4em;
 	text-align: center;
 	overflow: hidden;
 	padding: 0;
+	line-height: 3;
 }
 </style> 
 </head>
 <body>
 	
+<p>Open cells by pairs. The products of the cells in a pair should be the same.
 <div id="demo"> Loading... </div> 
 
 <script type="text/javascript"> 
+	var lastCell=0;
+  var status = Array(100);
+
+	function prod( n ) {
+		var str = '' + n;
+		return str.substring(0,1) * str.substring(1,2);
+	}
+	function flip(n,f) {
+		var attr = f
+			? { height: { to: '0', unit: 'em', from: '2' } }
+			: { height: { to: '2', unit: 'em', from: '0' } }; 
+		var anim = new YAHOO.util.Anim("cell_"+n, attr ); 
+		anim.animate(); 
+	}
+	function clickHandler(div) {
+		var n = div.id.substring(5);
+		if( status[n] == 2 ) return;
+		if( lastCell ) {
+			if( lastCell != n ) {
+				flip( n, 0 );
+				if( prod(lastCell) == prod(n) ) {
+					status[n] = 2;
+					status[lastCell] = 2;
+					lastCell = 0;
+				}
+				else {
+					status[n] = 1;
+					flip( lastCell, 1 );
+					status[lastCell] = 0;
+					lastCell = n;
+				}
+			}
+		}
+		else {
+			flip( n, 0 );
+			status[n] = 1;
+			lastCell = n;
+		}
+	}
 	function subcell(base) {
 		var ret = "<table><tbody>";
 		for( var r=0; r<3; r++ ) {
 			ret += "<tr>";
 			for( var c=0; c<3; c++ ) {
 				var a = 10*base + 1+c+3*(2-r);
-				var m = base * (1+c+3*(2-r));
-				ret += "<td><div id=\"cont_" + a + "\" onclick=\"clickHandler(this)\">";
-				ret += "<div id=\"cell_" + a + "\">" + m + "</div>" + a + "</div></td>";
+				var b = base + ' x ' + (1+c+3*(2-r));
+				ret += "<td><div id=\"cont_" + a + "\" onclick=\"clickHandler(this)\" status=\"2\">";
+				ret += "<div id=\"cell_" + a + "\">" + prod(a) + "</div>" + b + "</div></td>";
 			}
 			ret += "</tr>";
 		}
@@ -72,24 +114,10 @@
 
 </script> 
 <script type="text/javascript"> 
-	function clickHandler(div) {
-		if( div.open ) {
-			div.open = 0;
-			var attrClose = { height: { to: '0', unit: 'em', from: '2' } }; 
-			var anim = new YAHOO.util.Anim(div.id.replace(/cont/,"cell"), attrClose, 1 ); 
-    	anim.animate(); 
-		}
-		else {
-			div.open = 1;
-			var attrOpen  = { height: { to: '2', unit: 'em' } }; 
-			var anim = new YAHOO.util.Anim(div.id.replace(/cont/,"cell"), attrOpen ); 
-			anim.animate(); 
-		}
-	}
-	for( var y=1; y<=9;y++ ) {
-		for( var x=1; x<=9;x++ ) {
-			var n = 10*y + x;
-		}
+	var sq = new Array('11','22','33','44','55','66','77','88','99');
+	for( var i in sq ) {
+		flip(sq[i],0);
+		status[sq[i]] = 2;
 	}
 		
 </script> 
