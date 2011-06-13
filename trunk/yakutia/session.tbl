@@ -1,0 +1,12 @@
+
+DROP TABLE IF EXISTS `session`;
+CREATE TABLE `session` (
+    `session_id`  char(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+    `init_ts`     timestamp   NOT NULL,
+    `last_ts`     timestamp   NOT NULL,
+    `user_id`     int         unsigned    DEFAULT NULL,
+    `auth_ts`     timestamp   NULL        DEFAULT NULL,
+    PRIMARY KEY (`session_id`),
+    INDEX `last_ts_idx` (`last_ts`)
+);
+

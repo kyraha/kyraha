@@ -1,0 +1,128 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<title>[% page_title %]</title>
+
+<link type="text/css" rel="stylesheet" href="/yui/cssfonts/fonts-min.css" /> 
+<script type="text/javascript" src="/yui/yui/yui-min.js"></script> 
+
+<style type="text/css"> 
+#container {
+    background-color: #00CCFF;
+    border: 1px dotted black;
+    padding: 1em;
+    cursor: pointer;
+}
+</style> 
+
+</head>
+<body>
+<div id="login">[Empty]</div>
+
+<h1>Hello World!</h1>
+
+<script> 
+YUI({ filter: 'raw' }).use("node", "cookie",
+function(Y) {
+        
+    LoginNamespace = YUI.namespace('user.Login');
+
+    var elLogin = Y.one("#login"),
+        tIds = {},
+        loading = false,
+        current = null;
+
+    var onLoginSuccess = function(o) {
+        loading = false;
+
+        // A success response means the script node is inserted.  However, the
+        // utility is unable to detect whether or not the content of the script
+        // node is correct, or even if there was a bad response (like a 404
+        // error).  To get around this, we use the web service callback to
+        // verify that the script contents was correct.
+        if (o.tId in tIds) {
+            // The Get Utility has fired the success handler indicating that the
+            // requested script has loaded and is ready for use.
+        } else {
+            // The Get utility has fired onSuccess but the webservice callback did not
+            // fire.  We could retry the transaction here, or notify the user of the
+            // failure
+        }
+
+    };
+
+    var onLoginFailure = function(o) {
+        Y.log("The Get Utility failed.", "info", "example");
+    };
+
+    var onLoginTimeout = function(o) {
+        Y.log("The Get Utility timed out.", "info", "example");
+    };
+
+    var getLoginData = function() {
+        if( loading ) return;
+        loading = true;
+        elLogin.set("innerHTML", "Loading... ");
+        if( ! Y.Cookie.get("A") ) {
+            var d = new Date();
+            d.setTime( d.getTime() + 3600000 );
+            Y.Cookie.set("A", "new", {path:"/",expires:d.toUTCString()});
+        }
+        
+        var transactionObj = Y.Get.script( "/bin/login.cgi", {
+            onSuccess: onLoginSuccess,
+            onFailure: onLoginFailure,
+            onTimeout: onLoginTimeout,
+            timeout: 20000,
+            context: Y
+        });
+        
+        // keep track of the current transaction id.  The transaction will be
+        // considered complete only if the web service callback is executed.
+        current = transactionObj.tId; 
+    };
+
+    LoginNamespace.callback = function(results) {
+        tIds[current] = true;
+        
+        if( results.name ) {
+            var html = "Welcome " + results.name + " (auth=" + results.auth + ")";
+        } else {
+            var html = "Please login";
+        }
+        
+        //insert string into DOM:
+        elLogin.set('innerHTML', html);
+    };
+
+
+    var helloWorld = function(e) {
+        alert("Hello World!");
+    }
+    Y.on("click", helloWorld, "#container");
+ 
+    var interceptLink = function(e) {
+        e.preventDefault();
+        alert("You clicked on the second YUI link.  Because *preventDefault* was called, this link will not navigate away from the page.");
+    }
+    Y.on("click", interceptLink, "#secondA");
+
+    getLoginData();
+});
+ 
+</script> 
+ 
+<div id="demo"> 
+    <div id="container"> 
+        <p>Click for Hello World alert.</p> 
+        <p>[% message %]</p>
+    </div> 
+    <p><a href="http://developer.yahoo.com/yui" id="firstA">The YUI Library. (Link navigates away from page.)</a></p> 
+ 
+    <p><a href="http://developer.yahoo.com/yui" id="secondA">The YUI Library. (Link's default behavior is suppressed.)</a></p> 
+</div> 
+
+</body>
+</html>
+
