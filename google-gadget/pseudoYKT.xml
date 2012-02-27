@@ -14,7 +14,7 @@
    <Content type="html"><![CDATA[
    <div id="content_div"></div>
    <br>Input text:<br><textarea id="input_text"></textarea>
-   <br><button title="Convert" onclick="convert()" />
+   <br><INPUT TYPE="button" NAME="button" Value="Transform" onClick="convert()">
    <br>Output text:<br><textarea id="output_text"></textarea>
    <script type="text/javascript">
    // Get userprefs
