@@ -3,12 +3,13 @@
 <Module>
     <ModulePrefs title="PseudoYKT to Unicode converter" height="400"/> 
     <Content type="html"><![CDATA[
-        <input type="button" id="convert" value="Конвертировать" /><br/>
+        <input type="button" id="convert" value="Convert" onclick="replaceText()" /><br />
         <textarea id="convertText" style="width:100%;height:360px;"></textarea>
 
         <script type="text/javascript">
 
-        function replaceText(current) {
+        function replaceText() {
+            var current = document.getElementById('convertText').value;
             current = current.replace(/±/g, "ҕ");
             current = current.replace(/І/g, "ҥ");
             current = current.replace(/і/g, "ө");
@@ -19,9 +20,8 @@
             current = current.replace(/Ј/g, "Ө");
             current = current.replace(/¤/g, "Һ");
             current = current.replace(/Ґ/g, "Ү");
-            return current;
+            document.getElementById('convertText').innerHTML = current;
         }
-        $(function(){$("#convert").click(function(){$("#convertText").val(replaceText($("#convertText").val()))})})
         
         </script> 
     ]]>  
