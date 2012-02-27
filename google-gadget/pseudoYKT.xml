@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?> 
+<!-- $Id$ -->
+<Module>
+  <ModulePrefs title="PseudoYKT to Unicode converter" height="400"/> 
+  <UserPref name="mycolor" display_name="Color" default_value="Yellow" datatype="enum" >
+    <EnumValue value="Red" />
+     <EnumValue value="Aqua" />
+     <EnumValue value="Lime" />
+     <EnumValue value="Yellow" />
+     <EnumValue value="Pink" />
+     <EnumValue value="Orange" />
+     <EnumValue value="White" />
+   </UserPref>
+   <Content type="html"><![CDATA[
+   <div id="content_div"></div>
+   <br>Input text:<br><textarea id="input_text"></textarea>
+   <br><button title="Convert" onclick="convert()" />
+   <br>Output text:<br><textarea id="output_text"></textarea>
+   <script type="text/javascript">
+   // Get userprefs
+   var prefs = new gadgets.Prefs();
+
+   function replace(str) {
+      str = str.replace(/љ/g, 'ӝ');
+      str = str.replace(/ќ/g, 'ӧ');
+      str = str.replace(/џ/g, 'ӵ');
+      str = str.replace(/ћ/g, 'ӥ');
+      str = str.replace(/њ/g, 'ӟ');
+      
+      str = str.replace(/Љ/g, 'Ӝ');
+      str = str.replace(/Ќ/g, 'Ӧ');
+      str = str.replace(/Џ/g, 'Ӵ');
+      str = str.replace(/Ћ/g, 'Ӥ');
+      str = str.replace(/Њ/g, 'Ӟ');
+        
+      str = str.replace(/ж:/g,'ӝ');
+      str = str.replace(/о:/g,'ӧ');
+      str = str.replace(/ч:/g,'ӵ');
+      str = str.replace(/и:/g,'ӥ');
+      str = str.replace(/з:/g,'ӟ');
+      
+      str = str.replace(/Ж:/g,'Ӝ');
+      str = str.replace(/О:/g,'Ӧ');
+      str = str.replace(/Ч:/g,'Ӵ');
+      str = str.replace(/И:/g,'Ӥ');
+      str = str.replace(/З:/g,'Ӟ');
+        
+      str = str.replace(/ж"/g,'ӝ');
+      str = str.replace(/о"/g,'ӧ');
+      str = str.replace(/ч"/g,'ӵ');
+      str = str.replace(/и"/g,'ӥ');
+      str = str.replace(/з"/g,'ӟ');
+        
+      str = str.replace(/Ж"/g,'Ӝ');
+      str = str.replace(/О"/g,'Ӧ');
+      str = str.replace(/Ч"/g,'Ӵ');
+      str = str.replace(/И"/g,'Ӥ');
+      str = str.replace(/З"/g,'Ӟ');
+      
+      return str;
+   }
+        
+   function convert() {
+     var text = document.getElementById('input_text');
+     var output = document.getElementById('output_text');
+     var intext = text.value;
+     if (intext == '') {
+       text.innerHTML = ''
+     }
+     else {
+       var outtext = replace(intext);
+       output.value = outtext;
+     }
+   }
+
+   function displayGreeting () {
+     var html = "Hello World!";
+  
+     // Set the background color according to the mycolor userpref
+     var element = document.getElementById('content_div');  
+     element.style.height=250;
+     // Set the background color according to the mycolor userpref   
+     element.style.backgroundColor=prefs.getString("mycolor"); 
+
+
+     element.innerHTML = html;
+   }
+   // Pass the userprefs for this module instance to the function
+   // (allows users to include multiple module instances on their page)
+   gadgets.util.registerOnLoadHandler(displayGreeting); 
+  
+   </script> 
+   ]]>  
+  </Content>
+</Module>
