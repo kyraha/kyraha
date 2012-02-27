@@ -9,7 +9,8 @@
         <script type="text/javascript">
 
         function replaceText() {
-            var current = document.getElementById('convertText').value;
+            var input = document.getElementById('convertText');
+            var current = input.value;
             current = current.replace(/±/g, "ҕ");
             current = current.replace(/І/g, "ҥ");
             current = current.replace(/і/g, "ө");
@@ -20,7 +21,7 @@
             current = current.replace(/Ј/g, "Ө");
             current = current.replace(/¤/g, "Һ");
             current = current.replace(/Ґ/g, "Ү");
-            document.getElementById('convertText').innerHTML = current;
+            input.value = current;
         }
         
         </script> 
