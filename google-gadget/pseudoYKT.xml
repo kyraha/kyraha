@@ -3,9 +3,8 @@
 <Module>
     <ModulePrefs title="PseudoYKT to Unicode converter" height="400"/> 
     <Content type="html"><![CDATA[
-        <br>Input text:<br>
-        <textarea id="convertText" style="width:500px;height:360px;"></textarea>
-        <br><input type="button" id="convert" value="Конвертировать" /><br/>
+        <input type="button" id="convert" value="Конвертировать" /><br/>
+        <textarea id="convertText" style="width:100%;height:360px;"></textarea>
 
         <script type="text/javascript">
 
