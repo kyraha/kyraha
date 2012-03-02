@@ -1,30 +1,104 @@
 <?xml version="1.0" encoding="UTF-8" ?> 
 <!-- $Id$ -->
 <Module>
-    <ModulePrefs title="PseudoYKT to Unicode converter" height="400"/> 
+    <ModulePrefs title="PseudoYKT to Unicode converter" height="400"
+        author="Mikhail Kyraha"
+        author_email="scriptdesigner+pseudoykt.gadget@gmail.com"
+        description="Converting tool from various pseudo encodings to Unicode"
+        screenshot=""
+        thumbnail="" /> 
     <Content type="html"><![CDATA[
-        <input type="button" id="convert" value="Convert" onclick="replaceText()" /><br />
-        <textarea id="convertText" style="width:100%;height:360px;"></textarea>
+        <form name="uniconvert" method="get" action="">
+        <input type="button" id="convert" value="Convert" onclick="convertText(this.form)" />
+        <label for="enc1"><input type="radio" name="encoding" id="enc1" value="1" /> Bichik</label>
+        <label for="enc2"><input type="radio" name="encoding" id="enc2" value="2" /> Ykt.ru</label>
+        <label for="enc3"><input type="radio" name="encoding" id="enc3" value="3" /> Times1</label>
+        <br />
+        <textarea id="bigText" style="width:100%;height:360px;"></textarea>
+        </form>
 
         <script type="text/javascript">
 
-        function replaceText() {
-            var input = document.getElementById('convertText');
-            var current = input.value;
-            current = current.replace(/±/g, "ҕ");
-            current = current.replace(/І/g, "ҥ");
-            current = current.replace(/і/g, "ө");
-            current = current.replace(/ґ/g, "һ");
-            current = current.replace(/µ/g, "ү");
-            current = current.replace(/Ў/g, "Ҕ");
-            current = current.replace(/ў/g, "Ҥ");
-            current = current.replace(/Ј/g, "Ө");
-            current = current.replace(/¤/g, "Һ");
-            current = current.replace(/Ґ/g, "Ү");
-            input.value = current;
+        const frequencies = { "Ҕ":0, "ҕ":50, "Ҥ":0, "ҥ":39, "Ү":15, "ү":249, "Һ":0, "һ":127, "Ө":2, "ө":87 };
+
+        const mapping = [
+            { "ҕ":"ҕ", "ҥ":"ҥ", "ө":"ө", "һ":"һ", "ү":"ү", "Ҕ":"Ҕ", "Ҥ":"Ҥ", "Ө":"Ө", "Һ":"Һ", "Ү":"Ү" },
+            { "ҕ":"±", "ҥ":"І", "ө":"і", "һ":"ґ", "ү":"µ", "Ҕ":"Ў", "Ҥ":"ў", "Ө":"Ј", "Һ":"¤", "Ү":"Ґ" },
+            { "ҕ":"і", "ҥ":"µ", "ө":"є", "һ":"Ї", "ү":"ў", "Ҕ":"І", "Ҥ":"Μ", "Ө":"Є", "Һ":"ї", "Ү":"Ў" },
+            { "ҕ":"±", "ҥ":"²", "ө":"³", "һ":"´", "ү":"µ",                   "Ө":"£",          "Ү":"¥" },
+        ];
+
+
+        function convertText(formObj) {
+            var input = formObj.getElementsByTagName("textarea")[0];
+            var radioObj = formObj.elements['encoding'];
+            var encoding;
+            for( var i=0; i<radioObj.length; i++ ) {
+                if(radioObj[i].checked) encoding = radioObj[i].value;
+            }
+
+            if( encoding == undefined ) {
+                // Try to guess encoding and check the corresponding radio button
+                var guess = analyze(input.value);
+                for( var i=0; i < radioObj.length; i++ ) {
+                    radioObj[i].checked = radioObj[i].value == guess
+                        ? true : false;
+                }
+                //input.value += " Cosine = " + guess;
+            }
+            else {
+                input.value = doConvert( input.value, encoding );
+            }
         }
-        
-        </script> 
+
+        function analyze(current) {
+            var cosines = new Array();
+            for( var i = 0; i < mapping.length; i++ ) {
+                var occurrance = {};
+                for( var key in mapping[i] ) {
+                    if( mapping[i].hasOwnProperty(key) ) {
+                        var patt = new RegExp(mapping[i][key],"g");
+                        var matches = current.match(patt);
+                        occurrance[key] = matches ? matches.length : 0;
+                    }
+                    cosines[i] =  cosineVec(occurrance,frequencies)
+                }
+            }
+            var maxcos=0, candidate=0;
+            for( i = 0; i < cosines.length; i++ ) {
+                if( cosines[i] > maxcos ) {
+                    candidate = i;
+                    maxcos = cosines[i];
+                }
+            }
+            return candidate;
+        }
+
+        function doConvert( current, encoding ) {
+            for( var key in mapping[encoding] ) {
+                var patt = new RegExp( mapping[encoding][key],"g" );
+                current = current.replace( patt, key );
+            }
+            return current;
+        }
+
+        function cosineVec( vec1, vec2 ) {
+            var ort = {};
+            var key, dot=0, mag1=0, mag2=0;
+            for( key in vec1 ) {
+                ort[key] = 1;
+                mag1 += vec1[key] * vec1[key];
+            }
+            for( key in vec2 ) {
+                ort[key] = 1;
+                mag2 += vec2[key] * vec2[key];
+            }
+            if( mag1 == 0 || mag2 == 0 ) return 0;
+            for( key in ort ) dot += (vec1[key]||0)*(vec2[key]||0);
+            return dot / Math.sqrt( mag1 * mag2 );
+        }
+
+        </script>
     ]]>  
     </Content>
 </Module>
