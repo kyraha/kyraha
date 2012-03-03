@@ -10,6 +10,7 @@
     <Content type="html"><![CDATA[
         <form name="uniconvert" method="get" action="">
         <input type="button" id="buttonConvert" value="Convert" onclick="convertText(this.form)" />
+        <label for="enc0"><input type="radio" name="encodingNum" id="enc0" value="0" checked="1"/> Auto</label>
         <label for="enc1"><input type="radio" name="encodingNum" id="enc1" value="1" /> Times</label>
         <label for="enc2"><input type="radio" name="encodingNum" id="enc2" value="2" /> Yak</label>
         <label for="enc3"><input type="radio" name="encodingNum" id="enc3" value="3" /> Saxa</label>
@@ -43,7 +44,7 @@
                 if(radioObj[i].checked) mapIndex = radioObj[i].value;
             }
 
-            if( mapIndex == undefined ) {
+            if( mapIndex == undefined || mapIndex == 0 ) {
                 // Try to guess mapIndex and check the corresponding radio button
                 mapIndex = analyzeEncoding(inputElm.value);
                 for( var i=0; i < radioObj.length; i++ ) {
