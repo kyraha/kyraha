@@ -9,55 +9,59 @@
         thumbnail="" /> 
     <Content type="html"><![CDATA[
         <form name="uniconvert" method="get" action="">
-        <input type="button" id="convert" value="Convert" onclick="convertText(this.form)" />
-        <label for="enc1"><input type="radio" name="encoding" id="enc1" value="1" /> Bichik</label>
-        <label for="enc2"><input type="radio" name="encoding" id="enc2" value="2" /> Ykt.ru</label>
-        <label for="enc3"><input type="radio" name="encoding" id="enc3" value="3" /> Times1</label>
+        <input type="button" id="buttonConvert" value="Convert" onclick="convertText(this.form)" />
+        <label for="enc1"><input type="radio" name="encodingNum" id="enc1" value="1" /> Times</label>
+        <label for="enc2"><input type="radio" name="encodingNum" id="enc2" value="2" /> Yak</label>
+        <label for="enc3"><input type="radio" name="encodingNum" id="enc3" value="3" /> Saxa</label>
+        <label for="enc4"><input type="radio" name="encodingNum" id="enc4" value="4" /> Dabyl</label>
+        <label for="enc5"><input type="radio" name="encodingNum" id="enc5" value="5" /> Lazurski</label>
         <br />
-        <textarea id="bigText" style="width:100%;height:360px;"></textarea>
+        <textarea id="bigText" style="width:100%;height:26em;"></textarea>
         </form>
 
         <script type="text/javascript">
 
+        // Magic vector, obtained statistically on correct texts
         const frequencies = { "Ҕ":0, "ҕ":50, "Ҥ":0, "ҥ":39, "Ү":15, "ү":249, "Һ":0, "һ":127, "Ө":2, "ө":87 };
 
-        const mapping = [
-            { "ҕ":"ҕ", "ҥ":"ҥ", "ө":"ө", "һ":"һ", "ү":"ү", "Ҕ":"Ҕ", "Ҥ":"Ҥ", "Ө":"Ө", "Һ":"Һ", "Ү":"Ү" },
-            { "ҕ":"±", "ҥ":"І", "ө":"і", "һ":"ґ", "ү":"µ", "Ҕ":"Ў", "Ҥ":"ў", "Ө":"Ј", "Һ":"¤", "Ү":"Ґ" },
-            { "ҕ":"і", "ҥ":"µ", "ө":"є", "һ":"Ї", "ү":"ў", "Ҕ":"І", "Ҥ":"Μ", "Ө":"Є", "Һ":"ї", "Ү":"Ў" },
-            { "ҕ":"±", "ҥ":"²", "ө":"³", "һ":"´", "ү":"µ",                   "Ө":"£",          "Ү":"¥" },
+        // Various mappings of correct (Unicode) encodings onto incorrect (private) ones
+        const mappings = [
+            { "ҕ":"ҕ", "ҥ":"ҥ", "ө":"ө", "һ":"һ", "ү":"ү", "Ҕ":"Ҕ", "Ҥ":"Ҥ", "Ө":"Ө", "Һ":"Һ", "Ү":"Ү" }, // No convert
+            { "ҕ":"±", "ҥ":"І", "ө":"і", "һ":"ґ", "ү":"µ", "Ҕ":"Ў", "Ҥ":"ў", "Ө":"Ј", "Һ":"¤", "Ү":"Ґ" }, // Times_uni ?ҔҤ?
+            { "ҕ":"і", "ҥ":"µ", "ө":"є", "һ":"Ї", "ү":"ў", "Ҕ":"І", "Ҥ":"Μ", "Ө":"Є", "Һ":"ї", "Ү":"Ў" }, // Yak_uni ?ҔҤҺ?
+            { "ҕ":"є", "ҥ":"Ѕ", "ө":"№", "һ":"»", "ү":"ј", "Ҕ":"Є", "Ҥ":String.fromCharCode(173), "Ө":"©", "Һ":"«", "Ү":"¬" }, // Saxa_uni ?ҔҤ?
+            { "ҕ":"±", "ҥ":"²", "ө":"³", "һ":"´", "ү":"µ", "Ҕ":"¡", "Ҥ":"¢", "Ө":"£", "Һ":"¤", "Ү":"¥" }, // Dabyl
+            { "ҕ":"±", "ҥ":"²", "ө":"³", "һ":"´", "ү":"°", "Ҕ":"¡", "Ҥ":"¢", "Ө":"£", "Һ":"¤", "Ү":"¥" }, // Lazurski
         ];
 
 
         function convertText(formObj) {
-            var input = formObj.getElementsByTagName("textarea")[0];
-            var radioObj = formObj.elements['encoding'];
-            var encoding;
+            var inputElm = formObj.getElementsByTagName("textarea")[0];
+            var radioObj = formObj.elements['encodingNum'];
+            var mapIndex;
             for( var i=0; i<radioObj.length; i++ ) {
-                if(radioObj[i].checked) encoding = radioObj[i].value;
+                if(radioObj[i].checked) mapIndex = radioObj[i].value;
             }
 
-            if( encoding == undefined ) {
-                // Try to guess encoding and check the corresponding radio button
-                var guess = analyze(input.value);
+            if( mapIndex == undefined ) {
+                // Try to guess mapIndex and check the corresponding radio button
+                mapIndex = analyzeEncoding(inputElm.value);
                 for( var i=0; i < radioObj.length; i++ ) {
-                    radioObj[i].checked = radioObj[i].value == guess
+                    radioObj[i].checked = radioObj[i].value == mapIndex
                         ? true : false;
                 }
-                //input.value += " Cosine = " + guess;
             }
-            else {
-                input.value = doConvert( input.value, encoding );
-            }
+
+            if( mapIndex > 0 ) inputElm.value = doConvert( inputElm.value, mapIndex );
         }
 
-        function analyze(current) {
+        function analyzeEncoding(current) {
             var cosines = new Array();
-            for( var i = 0; i < mapping.length; i++ ) {
+            for( var i = 0; i < mappings.length; i++ ) {
                 var occurrance = {};
-                for( var key in mapping[i] ) {
-                    if( mapping[i].hasOwnProperty(key) ) {
-                        var patt = new RegExp(mapping[i][key],"g");
+                for( var key in mappings[i] ) {
+                    if( mappings[i].hasOwnProperty(key) ) {
+                        var patt = new RegExp(mappings[i][key],"g");
                         var matches = current.match(patt);
                         occurrance[key] = matches ? matches.length : 0;
                     }
@@ -74,9 +78,9 @@
             return candidate;
         }
 
-        function doConvert( current, encoding ) {
-            for( var key in mapping[encoding] ) {
-                var patt = new RegExp( mapping[encoding][key],"g" );
+        function doConvert( current, mapIndex ) {
+            for( var key in mappings[mapIndex] ) {
+                var patt = new RegExp( mappings[mapIndex][key],"g" );
                 current = current.replace( patt, key );
             }
             return current;
@@ -84,18 +88,18 @@
 
         function cosineVec( vec1, vec2 ) {
             var ort = {};
-            var key, dot=0, mag1=0, mag2=0;
+            var key, dot=0, magn1=0, magn2=0;
             for( key in vec1 ) {
                 ort[key] = 1;
-                mag1 += vec1[key] * vec1[key];
+                magn1 += vec1[key] * vec1[key];
             }
             for( key in vec2 ) {
                 ort[key] = 1;
-                mag2 += vec2[key] * vec2[key];
+                magn2 += vec2[key] * vec2[key];
             }
-            if( mag1 == 0 || mag2 == 0 ) return 0;
+            if( magn1 == 0 || magn2 == 0 ) return 0;
             for( key in ort ) dot += (vec1[key]||0)*(vec2[key]||0);
-            return dot / Math.sqrt( mag1 * mag2 );
+            return dot / Math.sqrt( magn1 * magn2 );
         }
 
         </script>
