@@ -4,12 +4,13 @@
 #include "opencv2/highgui/highgui.hpp"
 
 #include <iostream>
-
-const cv::Scalar BlobLower(10, 200, 150);
-const cv::Scalar BlobUpper(30, 255, 255);
+#include <queue>
 
 int main(int argc, char** argv)
 {
+	cv::Vec3i BlobLower( 4,  77, 125);
+	cv::Vec3i BlobUpper(16, 255, 255);
+
 	cv::VideoCapture capture;
 	capture.open(0);
 	if (!capture.isOpened()) {
@@ -22,6 +23,13 @@ int main(int argc, char** argv)
 	cv::namedWindow("Image", CV_WINDOW_AUTOSIZE);
 	cv::namedWindow("Blob", CV_WINDOW_AUTOSIZE);
 //	cv::namedWindow("Test", CV_WINDOW_AUTOSIZE);
+
+	cv::createTrackbar("H. Lower", "Blob", &(BlobLower[0]), 255);
+	cv::createTrackbar("H. Upper", "Blob", &(BlobUpper[0]), 255);
+	cv::createTrackbar("S. Lower", "Blob", &(BlobLower[1]), 255);
+	cv::createTrackbar("S. Upper", "Blob", &(BlobUpper[1]), 255);
+	cv::createTrackbar("V. Lower", "Blob", &(BlobLower[2]), 255);
+	cv::createTrackbar("V. Upper", "Blob", &(BlobUpper[2]), 255);
 
 	std::vector<cv::Point3d> objectPoints;
 	objectPoints.push_back(cv::Point3d( 0,   0, 0));
@@ -44,6 +52,10 @@ int main(int argc, char** argv)
 		-5.2140053606489992e-004,
 		-6.9063255104469826e-002);
 
+	cv::Point textOrg;
+	std::queue<double> qRo;
+	double sumRo = 0;
+
 	for (; true;) {
 		capture >> Im;
 		if (Im.empty()) {
@@ -52,13 +64,17 @@ int main(int argc, char** argv)
 		}
 		cv::cvtColor(Im, hsvIm, CV_BGR2HSV);
 		cv::inRange(hsvIm, BlobLower, BlobUpper, BlobIm);
+
+		textOrg.x = 20;
+		textOrg.y = Im.rows - 20;
+
 		//morphological opening (remove small objects from the foreground)
-		cv::erode(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)));
-		cv::dilate(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)));
+		cv::erode(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
+		cv::dilate(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
 
 		//morphological closing (fill small holes in the foreground)
-		cv::dilate(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)));
-		cv::erode(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5)));
+		cv::dilate(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
+		cv::erode(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
 		cv::medianBlur(BlobIm, BlobIm, 21);
 
 		//Extract Contours
@@ -128,18 +144,31 @@ int main(int argc, char** argv)
 				cv::Rodrigues(rvec, Rmat);
 				cv::Vec3d cameralocation;
 				cameralocation = -(Rmat.t() * tvec);
-				double Ro = sqrtf(cameralocation.dot(cameralocation));
-				std::cout << "Camera is at:"<< cameralocation <<" Ro: "<< Ro << std::endl;
+				double Ro = sqrtl(cameralocation.dot(cameralocation));
+				if (Ro < 5000) {
+					qRo.push(Ro);
+					sumRo += Ro;
+					if (qRo.size()>50) {
+						sumRo -= qRo.front();
+						qRo.pop();
+					}
+				}
+				std::ostringstream oss;
+				oss << "Camera is at:" << (qRo.size() > 0 ? sumRo/qRo.size() : Ro) <<", Ro:"<< Ro <<", XYZ: "<< cameralocation << std::endl;
+				cv::putText(Im, oss.str(), textOrg, 1, 1, cv::Scalar(255,255,255));
 			}
 		}
+
 
 		cv::imshow("Image", Im);
 		cv::imshow("Blob", BlobIm);
 //		cv::imshow("Test", hsvIm);
-		int key = 0xff & cv::waitKey(2000);
+		int key = 0xff & cv::waitKey(50);
 
 		if ((key & 255) == 27) break;
 
 	}
 	return 0;
 }
+
+
