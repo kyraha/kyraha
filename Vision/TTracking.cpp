@@ -4,12 +4,12 @@
 #include "opencv2/highgui/highgui.hpp"
 
 #include <iostream>
-#include <queue>
+#include <list>
 
 int main(int argc, char** argv)
 {
-	cv::Vec3i BlobLower( 4,  77, 125);
-	cv::Vec3i BlobUpper(16, 255, 255);
+	cv::Vec3i BlobLower( 0,  36, 125);
+	cv::Vec3i BlobUpper(10, 255, 255);
 
 	cv::VideoCapture capture;
 	capture.open(0);
@@ -32,10 +32,10 @@ int main(int argc, char** argv)
 	cv::createTrackbar("V. Upper", "Blob", &(BlobUpper[2]), 255);
 
 	std::vector<cv::Point3d> objectPoints;
-	objectPoints.push_back(cv::Point3d( 0,   0, 0));
-	objectPoints.push_back(cv::Point3d(81,   0, 0));
-	objectPoints.push_back(cv::Point3d(81, -51, 0));
-	objectPoints.push_back(cv::Point3d(15, -51, 0));
+	objectPoints.push_back(cv::Point3d(-135,   0, 0));
+	objectPoints.push_back(cv::Point3d( 135,   0, 0));
+	objectPoints.push_back(cv::Point3d( 135, 150, 0));
+	objectPoints.push_back(cv::Point3d(-135, 150, 0));
 	for (size_t i = 0; i < objectPoints.size(); ++i)
 	{
 		std::cout <<"Point "<< i <<": "<< objectPoints[i] << std::endl;
@@ -53,8 +53,7 @@ int main(int argc, char** argv)
 		-6.9063255104469826e-002);
 
 	cv::Point textOrg;
-	std::queue<double> qRo;
-	double sumRo = 0;
+	std::list<cv::Vec3d> qRo;
 
 	for (; true;) {
 		capture >> Im;
@@ -71,12 +70,12 @@ int main(int argc, char** argv)
 		//morphological opening (remove small objects from the foreground)
 		cv::erode(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
 		cv::dilate(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
-
+		/*
 		//morphological closing (fill small holes in the foreground)
 		cv::dilate(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
 		cv::erode(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
 		cv::medianBlur(BlobIm, BlobIm, 21);
-
+		*/
 		//Extract Contours
 		cv::Mat bw;
 		BlobIm.convertTo(bw, CV_8UC1);
@@ -106,12 +105,12 @@ int main(int argc, char** argv)
 			}
 			//Extract corner points assuming the two blobs are a credit card
 			std::vector<cv::Point> hull;
-			if (maxid < contours.size() && secid < contours.size()) {
+			if (maxid < contours.size()) {
 				hull.push_back(cv::Point(bw.cols, bw.rows));	// North-West
 				hull.push_back(cv::Point(0, bw.rows));			// North-East
 				hull.push_back(cv::Point(0, 0));				// South-East
 				hull.push_back(cv::Point(bw.cols, 0));			// South-West
-				for (size_t id = maxid; id == maxid || id == secid; id = id == maxid ? secid : contours.size()) {
+				for (size_t id = maxid; id == maxid; id = secid) {
 					for (size_t i = 0; i < contours[id].size(); ++i) {
 						if (hull[0].x + hull[0].y > contours[id][i].x + contours[id][i].y) {
 							hull[0].x = contours[id][i].x;
@@ -131,7 +130,7 @@ int main(int argc, char** argv)
 						}
 					}
 				}
-				cv::polylines(Im, hull, true, cv::Scalar(255, 0, 0));
+				cv::polylines(Im, hull, true, cv::Scalar(0, 255, 0));
 
 				std::vector<cv::Point2d> imagePoints(hull.size());
 				for (size_t i = 0; i < hull.size(); ++i) {
@@ -144,18 +143,37 @@ int main(int argc, char** argv)
 				cv::Rodrigues(rvec, Rmat);
 				cv::Vec3d cameralocation;
 				cameralocation = -(Rmat.t() * tvec);
-				double Ro = sqrtl(cameralocation.dot(cameralocation));
-				if (Ro < 5000) {
-					qRo.push(Ro);
-					sumRo += Ro;
-					if (qRo.size()>50) {
-						sumRo -= qRo.front();
-						qRo.pop();
-					}
+				qRo.push_front(cameralocation);
+				if (qRo.size()>50) {
+					qRo.pop_back();
 				}
+				if (qRo.size()>2) {
+					std::list<double> ordX, ordY, ordZ;
+					std::list<double>::iterator it;
+					size_t i;
+
+					for (std::list<cv::Vec3d>::iterator dp = qRo.begin(); dp != qRo.end(); ++dp) {
+						ordX.push_back((*dp)[0]);
+						ordY.push_back((*dp)[1]);
+						ordZ.push_back((*dp)[2]);
+					}
+					ordX.sort();
+					ordY.sort();
+					ordZ.sort();
+					i = ordX.size() / 2; it = ordX.begin();
+					while (i > 0 && it != ordX.end()) ++it, --i;
+					cameralocation[0] = *it;
+					i = ordY.size() / 2; it = ordY.begin();
+					while (i > 0 && it != ordY.end()) ++it, --i;
+					cameralocation[1] = *it;
+					i = ordZ.size() / 2; it = ordZ.begin();
+					while (i > 0 && it != ordZ.end()) ++it, --i;
+					cameralocation[2] = *it;
+				}
+				double Ro = sqrtl(cameralocation.dot(cameralocation));
 				std::ostringstream oss;
-				oss << "Camera is at:" << (qRo.size() > 0 ? sumRo/qRo.size() : Ro) <<", Ro:"<< Ro <<", XYZ: "<< cameralocation << std::endl;
-				cv::putText(Im, oss.str(), textOrg, 1, 1, cv::Scalar(255,255,255));
+				oss << "Camera is at: "<< Ro <<", XYZ: "<< cameralocation << std::endl;
+				cv::putText(Im, oss.str(), textOrg, 1, 1, cv::Scalar(255,0,255));
 			}
 		}
 
