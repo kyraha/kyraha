@@ -8,8 +8,8 @@
 
 int main(int argc, char** argv)
 {
-	cv::Vec3i BlobLower( 0,  36, 125);
-	cv::Vec3i BlobUpper(10, 255, 255);
+	cv::Vec3i BlobLower(144,  36, 125);
+	cv::Vec3i BlobUpper(192, 255, 255);
 
 	cv::VideoCapture capture;
 	capture.open(0);
@@ -32,25 +32,26 @@ int main(int argc, char** argv)
 	cv::createTrackbar("V. Upper", "Blob", &(BlobUpper[2]), 255);
 
 	std::vector<cv::Point3d> objectPoints;
-	objectPoints.push_back(cv::Point3d(-135,   0, 0));
-	objectPoints.push_back(cv::Point3d( 135,   0, 0));
-	objectPoints.push_back(cv::Point3d( 135, 150, 0));
-	objectPoints.push_back(cv::Point3d(-135, 150, 0));
-	for (size_t i = 0; i < objectPoints.size(); ++i)
-	{
-		std::cout <<"Point "<< i <<": "<< objectPoints[i] << std::endl;
-	}
+	objectPoints.push_back(cv::Point3d(-10,  0, 0));
+	objectPoints.push_back(cv::Point3d( 10,  0, 0));
+	objectPoints.push_back(cv::Point3d( 10, 14, 0));
+	objectPoints.push_back(cv::Point3d(-10, 14, 0));
 
-	cv::Matx33d cameraMatrix(
-		4.9410254557831900e+002, 0, 3.7487505597946938e+002,
-		0, 4.9180258750779660e+002, 2.0903256450552996e+002,
-		0, 0, 1);
-	cv::Matx<double, 5, 1> distCoeffs(
-		-2.0994774118936483e-002,
-		4.9899418109244344e-002,
-		-6.7418809421477795e-004,
-		-5.2140053606489992e-004,
-		-6.9063255104469826e-002);
+	std::vector<cv::Point> stencil;
+	stencil.push_back(cv::Point(  9,   0));
+	stencil.push_back(cv::Point( 32,   0));
+	stencil.push_back(cv::Point( 26,  76));
+	stencil.push_back(cv::Point(184,  76));
+	stencil.push_back(cv::Point(180,   0));
+	stencil.push_back(cv::Point(203,   0));
+	stencil.push_back(cv::Point(212, 100));
+	stencil.push_back(cv::Point(  0, 100));
+
+	cv::Matx33d camera_matrix(
+		7.4230925920305481e+002, 0., 3.0383585011521706e+002, 0.,
+		7.4431328863404576e+002, 2.3422929172706634e+002, 0., 0., 1.);
+	cv::Matx<double, 5, 1> distortion_coefficients(
+		2.0963551753568421e-001, -1.4796846132520820e+000, 0., 0., 2.7677879392937270e+000);
 
 	cv::Point textOrg;
 	std::list<cv::Vec3d> qRo;
@@ -66,11 +67,11 @@ int main(int argc, char** argv)
 
 		textOrg.x = 20;
 		textOrg.y = Im.rows - 20;
-
+		/*
 		//morphological opening (remove small objects from the foreground)
 		cv::erode(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
 		cv::dilate(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
-		/*
+
 		//morphological closing (fill small holes in the foreground)
 		cv::dilate(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
 		cv::erode(BlobIm, BlobIm, cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(3, 3)));
@@ -88,20 +89,26 @@ int main(int argc, char** argv)
 			// Find Largest Contour
 			size_t maxid = contours.size();
 			size_t secid = contours.size();
-			double maxarea = 0, secarea = 0;
+			double sim1 = 100.0, sim2 = 100.0;
 			for (size_t i = 0; i < contours.size(); i++)
 			{
-				double contourArea = cv::contourArea(contours[i]);
-				if (contourArea > maxarea)
-				{
-					secid = maxid;
-					maxid = i;
-					maxarea = contourArea;
+				if (cv::contourArea(contours[i]) > 256) {
+					double similarity = cv::matchShapes(stencil, contours[i], CV_CONTOURS_MATCH_I3, 1);
+					if (similarity < sim1)
+					{
+						secid = maxid;
+						maxid = i;
+						sim1 = similarity;
+					}
+					else if (similarity < sim2) {
+						secid = i;
+						sim2 = similarity;
+					}
+
 				}
-				else if (contourArea > secarea) {
-					secid = i;
-					secarea = contourArea;
-				}
+			}
+			for (std::vector<std::vector<cv::Point>>::iterator it = contours.begin(); it != contours.end(); ++it) {
+				cv::polylines(Im, *it, true, cv::Scalar(255, 0, 0));
 			}
 			//Extract corner points assuming the two blobs are a credit card
 			std::vector<cv::Point> hull;
@@ -138,7 +145,7 @@ int main(int argc, char** argv)
 				}
 
 				cv::Vec3d rvec, tvec;
-				cv::solvePnP(objectPoints, imagePoints, cameraMatrix, distCoeffs, rvec, tvec, false, CV_EPNP);
+				cv::solvePnP(objectPoints, imagePoints, camera_matrix, distortion_coefficients, rvec, tvec, false, CV_EPNP);
 				cv::Matx33d Rmat;
 				cv::Rodrigues(rvec, Rmat);
 				cv::Vec3d cameralocation;
