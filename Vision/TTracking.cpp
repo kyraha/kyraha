@@ -8,7 +8,8 @@
 #include <list>
 #include <algorithm>
 
-static const double CAPTURE_FOCAL = 290;
+static const double CAPTURE_FOCAL = 335;
+static const int CAPTURE_COLS = 424, CAPTURE_ROWS = 240;
 static const double CameraZeroDist = 130;
 static const double CameraHeight = 97-12;
 
@@ -21,7 +22,6 @@ class RobotVideo {
 public:
 
 	//static const int CAPTURE_COLS=640, CAPTURE_ROWS=480;
-	static const int CAPTURE_COLS = 424, CAPTURE_ROWS = 240;
 	static const int CAPTURE_PORT = 0;
 	static const int MIN_AREA = 135; // Min area in pixels, 3*(25+40+25) is a rough estimate
 	static const int MAX_TARGETS = 2;
@@ -183,6 +183,15 @@ cv::Vec4f CalculateLocation(std::vector<cv::Point> target)
 * \param contours Vector of contours. Where a contour is a Vector of Points
 */
 void RobotVideo::ProcessContours(std::vector<std::vector<cv::Point>> contours) {
+	// First do some preliminary calculations.
+	// These could be constants if the "CameraZeroDist" was a constant.
+	// Distance from the frame center to the zenith in focal length units (pixels)
+	// Preferences::GetInstance()->GetFloat("CameraFocal", CAPTURE_FOCAL)
+	double zenith = CAPTURE_FOCAL*CameraZeroDist / CameraHeight;
+	// Distance from the frame center to the horizon in focal length units (pixels)
+	double horizon = CAPTURE_FOCAL*CameraHeight / CameraZeroDist;
+	// Distance from the lens to the horizon in focal length units
+	double flat = sqrt(CAPTURE_FOCAL*CAPTURE_FOCAL + horizon*horizon);
 
 	// To rearrange the set of random contours into a rated list of targets
 	// we're going to need a new vector that we can sort
@@ -224,8 +233,6 @@ void RobotVideo::ProcessContours(std::vector<std::vector<cv::Point>> contours) {
 		}
 	}
 
-	float zenith = CAPTURE_FOCAL*CameraZeroDist / CameraHeight;
-	float meridian = CAPTURE_FOCAL*CameraHeight / CameraZeroDist + zenith;
 	// Now as we have the top MAX_TARGETS contours qualified as targets
 	// Extract four point from each contour that describe the rectangle and store the results
 	std::vector<std::vector<cv::Point>> boxes;
@@ -244,10 +251,13 @@ void RobotVideo::ProcessContours(std::vector<std::vector<cv::Point>> contours) {
 			if (hull[3].x - hull[3].y > point.x - point.y) hull[3] = point;
 		}
 
-		float dX = CAPTURE_COLS/2.0 - 0.5*(hull[0].x + hull[1].x);
-		float dY = zenith + 0.5*(hull[0].y + hull[1].y);
-		float azimuth = meridian*dX / dY;
-		double real_angle = atan2(azimuth, CAPTURE_FOCAL); // Preferences::GetInstance()->GetFloat("CameraFocal", CAPTURE_FOCAL));
+		// dX is the offset of the target from the frame's center to the left
+		float dX = 0.5*(CAPTURE_COLS - hull[0].x - hull[1].x);
+		// dY is the distance from the zenith to the target on the image
+		float dY = zenith + 0.5*(hull[0].y + hull[1].y - CAPTURE_ROWS);
+		// The real azimuth to the target is on the horizon, so scale it accordingly
+		float azimuth = dX * ((zenith+horizon) / dY);
+		double real_angle = atan2(azimuth, flat);
 
 		turns.push_back(real_angle * 180 / M_PI); // +Preferences::GetInstance()->GetFloat("CameraBias", 0));
 		boxes.push_back(hull);
@@ -259,7 +269,6 @@ void RobotVideo::ProcessContours(std::vector<std::vector<cv::Point>> contours) {
 			double tmp = turns.front();
 			turns.front() = turns.back();
 			turns.back() = tmp;
-
 		}
 	}
 
@@ -376,6 +385,12 @@ int main(int argc, char** argv)
 		cv::cvtColor(Im, hsvIm, CV_BGR2HSV);
 		cv::inRange(hsvIm, BlobLower, BlobUpper, BlobIm);
 
+		float zenith = CAPTURE_FOCAL*CameraZeroDist / CameraHeight;
+		float horizon = CAPTURE_FOCAL*CameraHeight / CameraZeroDist;
+		double flat = sqrt(CAPTURE_FOCAL*CAPTURE_FOCAL + horizon*horizon);
+		for (double a : {-6, -9, -18, 18, 9, 6}) {
+			cv::line(Im, cv::Point(CAPTURE_COLS / 2, CAPTURE_ROWS / 2 - zenith), cv::Point(CAPTURE_COLS / 2 + flat*tan(M_PI/a), CAPTURE_ROWS / 2 + horizon), cv::Scalar(0, 0, 150));
+		}
 		textOrg.x = 10;
 		textOrg.y = 10;
 		std::ostringstream oss;
@@ -440,8 +455,8 @@ int main(int argc, char** argv)
 					oss2 << "No target";
 					ossColor = cv::Scalar(0, 100, 255);
 				}
-				cv::putText(Im, oss1.str(), cv::Point(20, robot.CAPTURE_ROWS - 32), 1, 1, ossColor, 1);
-				cv::putText(Im, oss2.str(), cv::Point(20, robot.CAPTURE_ROWS - 16), 1, 1, ossColor, 1);
+				cv::putText(Im, oss1.str(), cv::Point(20, CAPTURE_ROWS - 32), 1, 1, ossColor, 1);
+				cv::putText(Im, oss2.str(), cv::Point(20, CAPTURE_ROWS - 16), 1, 1, ossColor, 1);
 
 			}
 		}
@@ -452,6 +467,5 @@ int main(int argc, char** argv)
 	}
 	return 0;
 }
-
 
 
