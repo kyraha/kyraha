@@ -8,9 +8,9 @@
 #include <list>
 #include <algorithm>
 
-static const double CAPTURE_FOCAL = 335;
+static const double CAPTURE_FOCAL = 357.77;
 static const int CAPTURE_COLS = 424, CAPTURE_ROWS = 240;
-static const double CameraZeroDist = 130;
+static const double CameraZeroDist = 140;
 static const double CameraHeight = 97-12;
 
 class DataSet : public std::list<float> {
@@ -20,11 +20,20 @@ public:
 
 class RobotVideo {
 public:
+	enum Target_side {
+		kMiddle,
+		kLeft,
+		kRight
+	};
 
 	//static const int CAPTURE_COLS=640, CAPTURE_ROWS=480;
 	static const int CAPTURE_PORT = 0;
 	static const int MIN_AREA = 135; // Min area in pixels, 3*(25+40+25) is a rough estimate
 	static const int MAX_TARGETS = 2;
+	float m_zenith;
+	float m_horizon;
+	float m_flat;
+	float m_tilt;
 
 private:
 	std::vector<std::vector<cv::Point>> m_boxes;
@@ -41,7 +50,7 @@ public:
 	// These guys need mutex locked but user should do that so can wrap them in a bunch
 	size_t HaveHeading() { return m_boxes.size(); };
 	float GetTurn(size_t i = 0);
-	float GetDistance(size_t i = 0);
+	float GetDistance(size_t i = 0, Target_side side = kMiddle);
 };
 
 RobotVideo::RobotVideo()
@@ -50,15 +59,29 @@ RobotVideo::RobotVideo()
 {
 }
 
-float RobotVideo::GetDistance(size_t i)
+float RobotVideo::GetDistance(size_t i, Target_side side)
 {
 	// Distance by the height. Farther an object with known height lower it appears on the image.
 	// The real height of the target is 97 inches.
 	// Camera is 12 inches above the floor.
-	float dy = (m_boxes[i][1].y + m_boxes[i][0].y - CAPTURE_ROWS) / 2.0;
-	float tower = CameraHeight;
-	float alpha = atan2f(tower, CameraZeroDist);
-	return tower / tanf(alpha - atan2f(dy, CAPTURE_FOCAL));
+
+	size_t tip;
+	switch (side) {
+	case kLeft:
+		tip = 0;
+		break;
+	case kRight:
+		tip = 1;
+		break;
+	default:
+		// This function can call itself recursively to get the distance to the middle as the average of two sides
+		return (GetDistance(i, kLeft) + GetDistance(i, kRight)) / 2;
+	}
+
+	float dx = CAPTURE_COLS / 2 - m_boxes[i][tip].x;
+	float dy = m_zenith - CAPTURE_ROWS / 2 + m_boxes[i][tip].y;
+	float dh = sqrt(dx*dx + dy*dy) - m_zenith;
+	return CameraHeight	/ tanf(m_tilt - atan2f(dh, CAPTURE_FOCAL));
 }
 
 float RobotVideo::GetTurn(size_t i)
@@ -66,6 +89,20 @@ float RobotVideo::GetTurn(size_t i)
 	return m_turns[i];
 }
 
+double adjustAngle(double a, double b)
+{
+	if (a <= 0 || b <= 0) return 0;
+	double c = 20; //!<- WIdth of the vision target in inches
+	double R = 5; //!<- Radius of the boulder in inches
+	double cosA = (b*b + c*c - a*a) / (2 * b*c);
+	double cosB = (a*a + c*c - b*b) / (2 * a*c);
+	if (-1 > cosA || cosA > 1 || -1 > cosB || cosB > 1) return 0;
+	double halfA = acos(cosA) / 2;
+	double halfB = acos(cosB) / 2;
+	double pullL = atan(R*sin(halfA) / b);
+	double pullR = atan(R*sin(halfB) / a);
+	return 180 * (pullL - pullR)/M_PI;
+}
 
 /**
 * \brief Stencil is a simplified "contour" that is an "ideal" shape that we're looking for.
@@ -187,11 +224,12 @@ void RobotVideo::ProcessContours(std::vector<std::vector<cv::Point>> contours) {
 	// These could be constants if the "CameraZeroDist" was a constant.
 	// Distance from the frame center to the zenith in focal length units (pixels)
 	// Preferences::GetInstance()->GetFloat("CameraFocal", CAPTURE_FOCAL)
-	double zenith = CAPTURE_FOCAL*CameraZeroDist / CameraHeight;
+	m_zenith = CAPTURE_FOCAL*CameraZeroDist / CameraHeight;
 	// Distance from the frame center to the horizon in focal length units (pixels)
-	double horizon = CAPTURE_FOCAL*CameraHeight / CameraZeroDist;
+	m_horizon = CAPTURE_FOCAL*CameraHeight / CameraZeroDist;
 	// Distance from the lens to the horizon in focal length units
-	double flat = sqrt(CAPTURE_FOCAL*CAPTURE_FOCAL + horizon*horizon);
+	m_flat = sqrt(CAPTURE_FOCAL*CAPTURE_FOCAL + m_horizon*m_horizon);
+	m_tilt = atan2f(CameraHeight, CameraZeroDist);
 
 	// To rearrange the set of random contours into a rated list of targets
 	// we're going to need a new vector that we can sort
@@ -254,10 +292,10 @@ void RobotVideo::ProcessContours(std::vector<std::vector<cv::Point>> contours) {
 		// dX is the offset of the target from the frame's center to the left
 		float dX = 0.5*(CAPTURE_COLS - hull[0].x - hull[1].x);
 		// dY is the distance from the zenith to the target on the image
-		float dY = zenith + 0.5*(hull[0].y + hull[1].y - CAPTURE_ROWS);
+		float dY = m_zenith + 0.5*(hull[0].y + hull[1].y - CAPTURE_ROWS);
 		// The real azimuth to the target is on the horizon, so scale it accordingly
-		float azimuth = dX * ((zenith+horizon) / dY);
-		double real_angle = atan2(azimuth, flat);
+		float azimuth = dX * ((m_zenith+m_horizon) / dY);
+		double real_angle = atan2(azimuth, m_flat);
 
 		turns.push_back(real_angle * 180 / M_PI); // +Preferences::GetInstance()->GetFloat("CameraBias", 0));
 		boxes.push_back(hull);
@@ -436,18 +474,22 @@ int main(int argc, char** argv)
 				}
 			}
 			if (robot.HaveHeading()) {
-				std::ostringstream oss1, oss2;
+				std::ostringstream oss1, oss2, oss3;
 				cv::Scalar ossColor(260, 0, 255);
 				if (robot.HaveHeading() > 0) {
 					oss1 << "Turn: ";
 					oss2 << "Dist: ";
+					oss3 << "Adj: ";
 					if (robot.HaveHeading() > 1) {
 						oss1 << robot.GetTurn(0) << " : " << robot.GetTurn(1);
 						oss2 << robot.GetDistance(0) << " : " << robot.GetDistance(1);
+						oss3 << adjustAngle(robot.GetDistance(0, RobotVideo::kLeft), robot.GetDistance(0, RobotVideo::kRight)) << " : ";
+						oss3 << adjustAngle(robot.GetDistance(1, RobotVideo::kLeft), robot.GetDistance(1, RobotVideo::kRight));
 					}
 					else {
 						oss1 << robot.GetTurn();
 						oss2 << robot.GetDistance();
+						oss3 << adjustAngle(robot.GetDistance(0, RobotVideo::kLeft), robot.GetDistance(0, RobotVideo::kRight));
 					}
 				}
 				else {
@@ -456,8 +498,8 @@ int main(int argc, char** argv)
 					ossColor = cv::Scalar(0, 100, 255);
 				}
 				cv::putText(Im, oss1.str(), cv::Point(20, CAPTURE_ROWS - 32), 1, 1, ossColor, 1);
-				cv::putText(Im, oss2.str(), cv::Point(20, CAPTURE_ROWS - 16), 1, 1, ossColor, 1);
-
+				cv::putText(Im, oss2.str(), cv::Point(20, CAPTURE_ROWS - 20), 1, 1, ossColor, 1);
+				cv::putText(Im, oss3.str(), cv::Point(20, CAPTURE_ROWS - 8), 1, 1, ossColor, 1);
 			}
 		}
 
